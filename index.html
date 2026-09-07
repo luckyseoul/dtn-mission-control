@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#08131d" />
+  <title>DTN Mission Control</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span></span><span></span><span></span></div>
+        <div><strong>DTN</strong><small>MISSION CONTROL</small></div>
+      </div>
+      <nav aria-label="Primary navigation">
+        <a class="nav-item active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
+        <a class="nav-item" href="#nodes"><span class="nav-icon">◈</span>Nodes &amp; routes</a>
+        <a class="nav-item" href="#traffic"><span class="nav-icon">↗</span>Traffic</a>
+        <a class="nav-item" href="#events"><span class="nav-icon">≋</span>Event stream <b class="nav-badge">3</b></a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="network-chip"><span class="pulse"></span><div><small>NETWORK</small><strong>LAN + TAILSCALE</strong></div></div>
+        <button class="settings-button" type="button">⚙ <span>Settings</span></button>
+      </div>
+    </aside>
+
+    <main class="main-content" id="overview">
+      <header class="topbar">
+        <div><p class="eyebrow">OPERATIONS / LOCAL MESH</p><h1>Mission control</h1></div>
+        <div class="topbar-actions"><span class="last-sync">● Live · <span id="last-sync">just now</span></span><button class="icon-button" id="refresh-btn" title="Refresh data">↻</button><div class="avatar">NK</div></div>
+      </header>
+
+      <section class="hero-row">
+        <div><h2>DTN network at a glance</h2><p>Service health, bundle flow, and route visibility across the local mesh.</p></div>
+        <button class="primary-button" id="discover-btn"><span>⌁</span> Discover hosts</button>
+      </section>
+
+      <section class="metric-grid" aria-label="Network summary">
+        <article class="metric-card accent-blue"><div class="metric-label">NODES ONLINE <span class="metric-icon">◈</span></div><div class="metric-value" id="nodes-online">—</div><div class="metric-note"><span class="trend up">↑ 1</span> in the last 24h</div></article>
+        <article class="metric-card accent-green"><div class="metric-label">SERVICES HEALTHY <span class="metric-icon">✓</span></div><div class="metric-value" id="services-healthy">—</div><div class="metric-note"><span class="status-dot green"></span> Across discovered hosts</div></article>
+        <article class="metric-card accent-orange"><div class="metric-label">BUNDLES / HOUR <span class="metric-icon">↗</span></div><div class="metric-value" id="bundles-hour">—</div><div class="metric-note"><span class="trend up">↑ 12.4%</span> vs previous period</div></article>
+        <article class="metric-card accent-purple"><div class="metric-label">ROUTES BEYOND GATEWAY <span class="metric-icon">⌁</span></div><div class="metric-value" id="routes-beyond">—</div><div class="metric-note"><span class="status-dot purple"></span> Advertised by reachable peers</div></article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel topology-panel" id="nodes">
+          <div class="panel-header"><div><h3>Network topology</h3><p>Observed hosts and DTN nodes, including nodes beyond the gateway.</p></div><div class="legend"><span><i class="legend-dot online"></i>Online</span><span><i class="legend-dot gateway"></i>Gateway</span><span><i class="legend-dot remote"></i>Remote</span></div></div>
+          <div class="topology-canvas" id="topology-canvas" aria-label="Network topology graph"></div>
+          <div class="topology-footer"><span><i class="status-dot green"></i> Mesh observation window: 5 min</span><span id="topology-count">— nodes · — links</span></div>
+        </article>
+
+        <article class="panel health-panel">
+          <div class="panel-header"><div><h3>Service health</h3><p>Process-level checks from each host agent.</p></div><button class="text-button" id="view-nodes">View all →</button></div>
+          <div class="health-list" id="health-list"></div>
+          <div class="panel-footnote"><span class="status-dot green"></span> All critical services reporting</div>
+        </article>
+      </section>
+
+      <section class="content-grid lower-grid">
+        <article class="panel traffic-panel" id="traffic">
+          <div class="panel-header"><div><h3>Bundle throughput</h3><p>Ingress and egress across the selected observation window.</p></div><div class="segmented"><button class="active" data-range="24h">24H</button><button data-range="7d">7D</button><button data-range="30d">30D</button></div></div>
+          <div class="chart-wrap"><div class="y-labels"><span>1.2k</span><span>800</span><span>400</span><span>0</span></div><svg class="traffic-chart" viewBox="0 0 760 230" role="img" aria-label="Bundle throughput chart"><defs><linearGradient id="area-in" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".28"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient><linearGradient id="area-out" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a78bfa" stop-opacity=".2"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0"/></linearGradient></defs><g class="grid-lines"><path d="M0 22H760M0 84H760M0 146H760M0 208H760"/></g><path class="area area-out" d="M0 195 C42 190 58 166 93 178 S142 145 175 164 S223 128 258 150 S309 112 344 139 S401 120 434 132 S478 92 517 122 S568 82 603 105 S654 58 690 88 S730 50 760 61 V208 H0Z"/><path class="line line-out" d="M0 195 C42 190 58 166 93 178 S142 145 175 164 S223 128 258 150 S309 112 344 139 S401 120 434 132 S478 92 517 122 S568 82 603 105 S654 58 690 88 S730 50 760 61"/><path class="area area-in" d="M0 178 C43 185 60 142 95 158 S144 125 177 143 S220 114 259 132 S305 98 345 121 S395 80 435 108 S482 76 520 99 S564 55 605 82 S653 75 692 55 S734 34 760 42 V208 H0Z"/><path class="line line-in" d="M0 178 C43 185 60 142 95 158 S144 125 177 143 S220 114 259 132 S305 98 345 121 S395 80 435 108 S482 76 520 99 S564 55 605 82 S653 75 692 55 S734 34 760 42"/><g class="x-labels"><text x="0" y="226">00:00</text><text x="184" y="226">06:00</text><text x="372" y="226">12:00</text><text x="560" y="226">18:00</text><text x="724" y="226">NOW</text></g></svg></div>
+          <div class="chart-legend"><span><i class="line-key inbound"></i>Inbound <strong>684</strong> bundles</span><span><i class="line-key outbound"></i>Outbound <strong>521</strong> bundles</span><span class="chart-up">↑ 8.6%</span></div>
+        </article>
+
+        <article class="panel bundle-panel" id="bundle-groups">
+          <div class="panel-header"><div><h3>Bundle groups</h3><p>Traffic classified by bundle purpose.</p></div><button class="text-button" id="bundle-filter">All nodes ↓</button></div>
+          <div class="bundle-list" id="bundle-list"></div>
+          <div class="panel-footnote"><span class="status-dot green"></span> Classification from endpoint + payload metadata</div>
+        </article>
+
+        <article class="panel events-panel" id="events">
+          <div class="panel-header"><div><h3>Recent events</h3><p>Last health and routing signals.</p></div><button class="text-button" id="view-events">Open log →</button></div>
+          <div class="event-list" id="event-list"></div>
+        </article>
+      </section>
+
+      <footer class="page-footer"><span>DTN Mission Control <b>v0.1</b></span><span>Discovery: LAN neighbors + Tailscale + DTN gateway advertisements</span><span>Data refreshes every 15s</span></footer>
+    </main>
+  </div>
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <aside class="node-drawer" id="node-drawer" aria-hidden="true" aria-label="Node details">
+    <div class="drawer-top"><div><p class="eyebrow">NODE DETAILS</p><h2 id="drawer-title">—</h2></div><button class="icon-button" id="drawer-close" aria-label="Close node details">×</button></div>
+    <div class="drawer-status"><span class="status-dot green" id="drawer-status-dot"></span><strong id="drawer-status">—</strong><span id="drawer-last-seen">Last observation —</span></div>
+    <div class="drawer-identity"><div><small>EID</small><strong id="drawer-eid">—</strong></div><div><small>ADDRESS</small><strong id="drawer-ip">—</strong></div><div><small>ROLE</small><strong id="drawer-role">—</strong></div></div>
+    <div class="drawer-section"><div class="drawer-section-title">Services <span id="drawer-service-count">—</span></div><div class="drawer-services" id="drawer-services"></div></div>
+    <div class="drawer-section"><div class="drawer-section-title">Remote actions</div><div class="action-grid"><button class="action-button" data-action="ping"><span>◌</span><b>Ping host</b><small>Reachability + RTT</small></button><button class="action-button" data-action="status"><span>≋</span><b>Request status</b><small>Agent health snapshot</small></button><button class="action-button" data-action="echo"><span>↔</span><b>Send echo</b><small>Non-payload test bundle</small></button><button class="action-button" data-action="routes"><span>⌁</span><b>Request routes</b><small>Contact graph summary</small></button></div></div>
+    <div class="drawer-result" id="drawer-result"><span class="status-dot"></span><span>Select an action to see its result here.</span></div>
+    <p class="drawer-note">Actions are audited and require an authenticated node agent. Maintenance nodes remain read-only.</p>
+  </aside>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
