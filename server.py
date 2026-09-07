@@ -16,7 +16,7 @@ def read_state():
     try:
         return json.loads(STATE_FILE.read_text())
     except (OSError, json.JSONDecodeError):
-        return {"observedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nodes": [], "links": [], "events": []}
+        return {"mode": "no-data", "observedAt": None, "nodes": [], "links": [], "events": []}
 
 def discover_neighbors():
     """Return non-invasive host observations from the local neighbor table.

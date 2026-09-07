@@ -1,4 +1,5 @@
 const fallbackState = {
+  mode:'demo',
   observedAt: new Date().toISOString(),
   nodes: [
     {id:'edge-a',host:'edge-node-a',ip:'192.0.2.11',eid:'ipn:1001',role:'edge',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo × 3',100],['cfdpclock',100],['bputa',100],['dtnex',100]]},
@@ -30,15 +31,27 @@ const $ = selector => document.querySelector(selector);
 let state = fallbackState;
 
 function serviceCount(nodes) { return nodes.reduce((n, host) => n + host.services.length, 0); }
+function formatAge(timestamp) {
+  if (!timestamp) return 'no observation';
+  const age = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
+  if (age < 60) return `${age}s ago`;
+  if (age < 3600) return `${Math.floor(age / 60)}m ago`;
+  return `${Math.floor(age / 3600)}h ago`;
+}
+function hasLiveData() { return state.mode === 'live' && Array.isArray(state.nodes) && state.nodes.length > 0; }
 function renderMetrics() {
+  if (!hasLiveData() && state.mode === 'no-data') {
+    $('#nodes-online').textContent = '—'; $('#services-healthy').textContent = '—'; $('#bundles-hour').textContent = '—'; $('#routes-beyond').textContent = '—'; $('#topology-count').textContent = 'No live telemetry'; return;
+  }
   const online = state.nodes.filter(n => n.status === 'online').length;
   $('#nodes-online').textContent = `${online} / ${state.nodes.length}`;
   $('#services-healthy').textContent = `${serviceCount(state.nodes.filter(n => n.status === 'online'))}`;
-  $('#bundles-hour').textContent = '1,205';
+  $('#bundles-hour').textContent = (state.bundleGroups || []).reduce((total, group) => total + Number(group.count || 0), 0).toLocaleString();
   $('#routes-beyond').textContent = `${state.nodes.filter(n => n.role === 'remote').length}`;
   $('#topology-count').textContent = `${state.nodes.length} nodes · ${state.links.length} links`;
 }
 function renderHealth() {
+  if (state.mode === 'no-data') { $('#health-list').innerHTML = '<div class="empty-state">No live node agent has published service health yet.</div>'; return; }
   $('#health-list').innerHTML = state.nodes.slice(0,4).map(node => {
     const score = Math.round(node.services.reduce((a,s) => a+s[1],0)/node.services.length);
     const color = node.status === 'degraded' ? ' style="background:var(--orange)"' : '';
@@ -46,10 +59,12 @@ function renderHealth() {
   }).join('');
 }
 function renderEvents() {
+  if (state.mode === 'no-data') { $('#event-list').innerHTML = '<div class="empty-state">Events will appear after an authenticated collector connects.</div>'; return; }
   $('#event-list').innerHTML = state.events.slice(0,4).map(event => `<div class="event-row"><span class="event-dot ${event.kind === 'info' ? 'info' : event.kind === 'warn' ? 'warn' : ''}"></span><div><div class="event-title">${event.title}</div><div class="event-meta">${event.meta}</div></div><span class="event-time">${event.time}</span></div>`).join('');
 }
 function renderBundleGroups() {
   const groups = state.bundleGroups || [];
+  if (state.mode === 'no-data' || !groups.length) { $('#bundle-list').innerHTML = '<div class="empty-state">No live bundle classification available.</div>'; return; }
   $('#bundle-list').innerHTML = groups.map(group => `<div class="bundle-row"><div class="bundle-name"><span class="bundle-swatch" style="background:${group.color}"></span><span>${group.name}<small>${group.short}</small></span></div><div class="bundle-bar"><i style="width:${group.share}%;background:${group.color}"></i></div><strong>${group.count}</strong></div>`).join('');
 }
 function renderTopology() {
@@ -86,9 +101,9 @@ async function runNodeAction(action) {
     result.innerHTML = `<span class="status-dot" style="background:${data.ok ? 'var(--green)' : 'var(--orange)'}"></span><span>${data.message || 'Action completed.'}</span>`;
   } catch (_) { result.innerHTML = '<span class="status-dot" style="background:var(--orange)"></span><span>Action service unavailable; no change was made.</span>'; }
 }
-function render() { renderMetrics(); renderHealth(); renderEvents(); renderBundleGroups(); renderTopology(); $('#last-sync').textContent='just now'; }
+function render() { renderMetrics(); renderHealth(); renderEvents(); renderBundleGroups(); renderTopology(); $('#data-mode').textContent = state.mode === 'live' ? 'LIVE' : state.mode === 'demo' ? 'DEMO SNAPSHOT' : 'NO LIVE DATA'; $('#last-sync').textContent = formatAge(state.observedAt); }
 function showToast(message) { const toast=$('#toast'); toast.textContent=message; toast.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer=setTimeout(()=>toast.classList.remove('show'),3000); }
-async function refresh() { try { const response=await fetch('/api/state',{cache:'no-store'}); if(response.ok) { const incoming=await response.json(); if(Array.isArray(incoming.nodes) && incoming.nodes.length) state=incoming; } } catch (_) {} render(); }
+async function refresh() { try { const response=await fetch('/api/state',{cache:'no-store'}); if(response.ok) { const incoming=await response.json(); if(incoming.mode || (Array.isArray(incoming.nodes) && incoming.nodes.length)) state=incoming; } } catch (_) {} render(); }
 $('#refresh-btn').addEventListener('click',()=>{refresh();showToast('Dashboard refreshed');});
 $('#discover-btn').addEventListener('click',async()=>{showToast('Discovery scan started · LAN neighbors + Tailscale peers'); try { const response=await fetch('/api/discovery',{cache:'no-store'}); const result=await response.json(); showToast(`Scan complete · ${result.neighbors.length} LAN neighbor${result.neighbors.length === 1 ? '' : 's'} observed`); } catch (_) { setTimeout(()=>showToast('Scan complete · showing last authenticated snapshot'),700); }});
 document.querySelectorAll('.segmented button').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.segmented button').forEach(b=>b.classList.remove('active'));button.classList.add('active');showToast(`Showing throughput for ${button.textContent}`);}));
