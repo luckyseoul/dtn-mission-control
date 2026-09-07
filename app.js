@@ -1,6 +1,6 @@
 const fallbackState = {
   mode:'demo',
-  observedAt: new Date().toISOString(),
+  observedAt: null,
   nodes: [
     {id:'edge-a',host:'edge-node-a',ip:'192.0.2.11',eid:'ipn:1001',role:'edge',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo × 3',100],['cfdpclock',100],['bputa',100],['dtnex',100]]},
     {id:'edge-b',host:'edge-node-b',ip:'192.0.2.12',eid:'ipn:1002',role:'edge',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo × 3',100],['cfdpclock',100],['bputa',100],['dtnex',100]]},
@@ -103,7 +103,7 @@ async function runNodeAction(action) {
 }
 function render() { renderMetrics(); renderHealth(); renderEvents(); renderBundleGroups(); renderTopology(); $('#data-mode').textContent = state.mode === 'live' ? 'LIVE' : state.mode === 'demo' ? 'DEMO SNAPSHOT' : 'NO LIVE DATA'; $('#last-sync').textContent = formatAge(state.observedAt); }
 function showToast(message) { const toast=$('#toast'); toast.textContent=message; toast.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer=setTimeout(()=>toast.classList.remove('show'),3000); }
-async function refresh() { try { const response=await fetch('/api/state',{cache:'no-store'}); if(response.ok) { const incoming=await response.json(); if(incoming.mode || (Array.isArray(incoming.nodes) && incoming.nodes.length)) state=incoming; } } catch (_) {} render(); }
+async function refresh() { try { const response=await fetch('/api/state',{cache:'no-store'}); if(response.ok) { const incoming=await response.json(); if(incoming.mode === 'live' && Array.isArray(incoming.nodes) && incoming.nodes.length) state=incoming; else if(incoming.mode === 'no-data') state={...fallbackState, mode:'demo'}; } } catch (_) {} render(); }
 $('#refresh-btn').addEventListener('click',()=>{refresh();showToast('Dashboard refreshed');});
 $('#discover-btn').addEventListener('click',async()=>{showToast('Discovery scan started · LAN neighbors + Tailscale peers'); try { const response=await fetch('/api/discovery',{cache:'no-store'}); const result=await response.json(); showToast(`Scan complete · ${result.neighbors.length} LAN neighbor${result.neighbors.length === 1 ? '' : 's'} observed`); } catch (_) { setTimeout(()=>showToast('Scan complete · showing last authenticated snapshot'),700); }});
 document.querySelectorAll('.segmented button').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.segmented button').forEach(b=>b.classList.remove('active'));button.classList.add('active');showToast(`Showing throughput for ${button.textContent}`);}));
