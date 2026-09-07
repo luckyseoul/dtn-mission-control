@@ -1,14 +1,14 @@
 const fallbackState = {
   observedAt: new Date().toISOString(),
   nodes: [
-    {id:'orin',host:'orin',ip:'192.168.1.135',eid:'ipn:268485121',role:'edge',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo × 3',100],['cfdpclock',100],['bputa',100],['dtnex',100]]},
-    {id:'soulkiller',host:'soulkiller',ip:'192.168.1.113',eid:'ipn:268485122',role:'edge',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo × 3',100],['cfdpclock',100],['bputa',100],['dtnex',100]]},
-    {id:'gateway',host:'pwg-gateway',ip:'100.96.108.37',eid:'ipn:268485000',role:'gateway',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo',100],['contact graph',96]]},
-    {id:'remote-1',host:'remote-node-07',ip:'100.96.108.54',eid:'ipn:268485207',role:'remote',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo',88],['route advert',100]]},
-    {id:'remote-2',host:'remote-node-12',ip:'100.96.108.61',eid:'ipn:268485212',role:'remote',status:'degraded',services:[['bpclock',100],['ipnfw',100],['udpclo',64],['route advert',100]]},
-    {id:'horus',host:'horus',ip:'192.168.1.85',eid:'ipn:268485123',role:'edge',status:'maintenance',services:[['bpclock',0],['ipnfw',0],['udpclo',0],['cfdpclock',0],['bputa',0],['dtnex',0]]}
+    {id:'edge-a',host:'edge-node-a',ip:'192.0.2.11',eid:'ipn:1001',role:'edge',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo × 3',100],['cfdpclock',100],['bputa',100],['dtnex',100]]},
+    {id:'edge-b',host:'edge-node-b',ip:'192.0.2.12',eid:'ipn:1002',role:'edge',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo × 3',100],['cfdpclock',100],['bputa',100],['dtnex',100]]},
+    {id:'gateway',host:'gateway',ip:'198.51.100.1',eid:'ipn:2000',role:'gateway',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo',100],['contact graph',96]]},
+    {id:'remote-1',host:'remote-node-07',ip:'203.0.113.7',eid:'ipn:3007',role:'remote',status:'online',services:[['bpclock',100],['ipnfw',100],['udpclo',88],['route advert',100]]},
+    {id:'remote-2',host:'remote-node-12',ip:'203.0.113.12',eid:'ipn:3012',role:'remote',status:'degraded',services:[['bpclock',100],['ipnfw',100],['udpclo',64],['route advert',100]]},
+    {id:'edge-c',host:'edge-node-c',ip:'192.0.2.13',eid:'ipn:1003',role:'edge',status:'maintenance',services:[['bpclock',0],['ipnfw',0],['udpclo',0],['cfdpclock',0],['bputa',0],['dtnex',0]]}
   ],
-  links:[['orin','gateway'],['soulkiller','gateway'],['gateway','remote-1'],['gateway','remote-2'],['orin','soulkiller'],['horus','gateway']],
+  links:[['edge-a','gateway'],['edge-b','gateway'],['gateway','remote-1'],['gateway','remote-2'],['edge-a','edge-b'],['edge-c','gateway']],
   bundleGroups:[
     {name:'Administrative',short:'ADM',count:184,color:'var(--cyan)',share:15.3},
     {name:'Keepalive',short:'KA',count:412,color:'var(--green)',share:34.2},
@@ -19,10 +19,10 @@ const fallbackState = {
   ],
   events:[
     {kind:'ok',title:'CPB block received from remote-node-07',meta:'ipn:268485207 · 41 bytes',time:'2 min ago'},
-    {kind:'info',title:'New node discovered beyond gateway',meta:'ipn:268485212 · 100.96.108.61',time:'8 min ago'},
+    {kind:'info',title:'New node discovered beyond gateway',meta:'ipn:3012 · remote address',time:'8 min ago'},
     {kind:'warn',title:'udpclo latency elevated on remote-node-12',meta:'p95 820 ms · threshold 500 ms',time:'14 min ago'},
-    {kind:'info',title:'Horus marked under maintenance',meta:'ipn:268485123 · last seen 2026-09-06 18:42 UTC',time:'yesterday'},
-    {kind:'ok',title:'Orin DTNEX heartbeat acknowledged',meta:'ipn:268485121 · 1800 s interval',time:'21 min ago'}
+    {kind:'info',title:'edge-node-c marked under maintenance',meta:'ipn:1003 · last seen yesterday',time:'yesterday'},
+    {kind:'ok',title:'Edge node DTNEX heartbeat acknowledged',meta:'ipn:1001 · 1800 s interval',time:'21 min ago'}
   ]
 };
 
@@ -55,7 +55,7 @@ function renderBundleGroups() {
 function renderTopology() {
   const canvas = $('#topology-canvas');
   canvas.innerHTML = '';
-  const positions = {orin:[18,57],soulkiller:[18,22],gateway:[51,40],'remote-1':[82,23],'remote-2':[82,73],horus:[51,88]};
+  const positions = {'edge-a':[18,57],'edge-b':[18,22],gateway:[51,40],'remote-1':[82,23],'remote-2':[82,73],'edge-c':[51,88]};
   const point = id => positions[id] || [50,50];
   state.links.forEach(([from,to]) => { const a=point(from), b=point(to); const dx=b[0]-a[0], dy=b[1]-a[1]; const length=Math.sqrt(dx*dx+dy*dy); const link=document.createElement('span'); link.className=`topology-link ${to.startsWith('remote') ? 'dashed' : ''}`; link.style.left=`${a[0]}%`; link.style.top=`${a[1]}%`; link.style.width=`${length}%`; link.style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`; canvas.appendChild(link); });
   state.nodes.forEach(node => { const [x,y]=point(node.id); const el=document.createElement('div'); el.className='topology-node'; el.style.left=`${x}%`; el.style.top=`${y}%`; const color=node.role==='gateway'?'var(--cyan)':node.role==='remote'?'var(--purple)':(node.status==='degraded'||node.status==='maintenance')?'var(--orange)':'var(--green)'; el.style.setProperty('--node-color',color); el.innerHTML=`<div class="node-orbit"></div><div class="node-label">${node.host}<small>${node.eid} · ${node.status}</small></div>`; el.addEventListener('click',()=>openNodeDrawer(node)); canvas.appendChild(el); });
