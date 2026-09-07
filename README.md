@@ -17,7 +17,7 @@ The dashboard can also be opened as a static `index.html`. `state.json` is an in
 
 ## What is included
 
-- Topology for Orin, Soulkiller, Horus, the gateway, and remote nodes beyond the gateway.
+- Topology for local edge nodes, the gateway, and remote nodes beyond the gateway.
 - Process-level health for `bpclock`, `ipnfw`, `udpclo`, `cfdpclock`, `bputa`, and `dtnex`.
 - Bundle-purpose groups: Administrative, Keepalive, Echo/probe, Retry/custody, CPB metadata, and Application payload.
 - Clickable node detail drawer with service health and safe interaction controls.
