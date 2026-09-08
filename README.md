@@ -13,7 +13,7 @@ python3 server.py
 # http://127.0.0.1:8088
 ```
 
-The dashboard can also be opened as a static `index.html`. `state.json` is an intentionally small placeholder; a collector or authenticated gateway should replace it atomically with live state.
+The dashboard can also be opened as a static `index.html`. When `DTN_DASHBOARD_NODES` points to a private node map, `server.py` polls each configured SSH alias every browser refresh and reports live daemon health. Without that private map it falls back to the clearly labelled demo snapshot.
 
 ## What is included
 

@@ -1,18 +1,64 @@
 #!/usr/bin/env python3
-"""Small zero-dependency server for the DTN Mission Control UI.
-
-The UI works as a static prototype, while this server provides the seam for
-real collectors. An agent or gateway can atomically replace state.json, or a
-future collector can publish the same schema to /api/state.
-"""
+"""Zero-dependency server and live SSH collector for DTN Mission Control."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import json, os, subprocess, time
 
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = Path(os.environ.get("DTN_DASHBOARD_STATE", ROOT / "state.json"))
+NODE_MAP_FILE = Path(os.environ.get("DTN_DASHBOARD_NODES", "/home/nick/ion-config/dtn-dashboard-nodes.json"))
+PROCESS_NAMES = ("bpclock", "ipnfw", "udpclo", "cfdpclock", "bputa", "dtnex")
+
+def process_counts():
+    result = {}
+    for name in PROCESS_NAMES:
+        try:
+            result[name] = int(subprocess.check_output(["pgrep", "-cx", name], text=True, stderr=subprocess.DEVNULL).strip() or 0)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            result[name] = 0
+    return result
+
+def node_map():
+    try:
+        value = json.loads(NODE_MAP_FILE.read_text())
+        return value if isinstance(value, list) else []
+    except (OSError, json.JSONDecodeError):
+        return []
+
+def collect_counts(node):
+    remote = "for p in bpclock ipnfw udpclo cfdpclock bputa dtnex; do printf '%s=' \"$p\"; pgrep -cx \"$p\" 2>/dev/null || printf '0'; done"
+    if node.get("ssh") == "local":
+        return process_counts(), True
+    try:
+        output = subprocess.check_output(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4", node["ssh"], remote], text=True, stderr=subprocess.STDOUT, timeout=8)
+        counts = {}
+        for item in output.split():
+            name, _, value = item.partition("=")
+            if name in PROCESS_NAMES:
+                counts[name] = int(value or 0)
+        return {name: counts.get(name, 0) for name in PROCESS_NAMES}, len(counts) == len(PROCESS_NAMES)
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError):
+        return {name: 0 for name in PROCESS_NAMES}, False
+
+def live_state():
+    configured = node_map()
+    if not configured:
+        return None
+    nodes = []
+    for item in configured:
+        counts, reachable = collect_counts(item)
+        services = [["bpclock", 100 if counts["bpclock"] else 0], ["ipnfw", 100 if counts["ipnfw"] else 0], ["udpclo × 3", min(100, round(counts["udpclo"] / 3 * 100))], ["cfdpclock", 100 if counts["cfdpclock"] else 0], ["bputa", 100 if counts["bputa"] else 0], ["dtnex", 100 if counts["dtnex"] else 0]]
+        active = sum(1 for _, health in services if health > 0)
+        status = "online" if reachable and active == len(services) else "degraded" if reachable and active else "offline"
+        nodes.append({"id": item["id"], "host": item.get("label", item["id"]), "ip": item.get("displayAddress", "configured node"), "sshTarget": item.get("ssh"), "eid": item.get("eid", "DTN node"), "role": item.get("role", "edge"), "status": status, "services": services})
+    ids = [node["id"] for node in nodes]
+    links = [[ids[index], ids[index + 1]] for index in range(len(ids) - 1)]
+    return {"mode": "live", "observedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nodes": nodes, "links": links, "events": [{"kind": "info", "title": "Live daemon poll completed", "meta": f"{len(nodes)} configured nodes · refreshed from SSH/local process probes", "time": "just now"}], "bundleGroups": []}
 
 def read_state():
+    collected = live_state()
+    if collected is not None:
+        return collected
     try:
         return json.loads(STATE_FILE.read_text())
     except (OSError, json.JSONDecodeError):
@@ -63,10 +109,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": False, "message": "Node is not present in the authenticated state snapshot."}); return
         if action == "ping":
             try:
-                subprocess.check_output(["ping", "-c", "1", "-W", "1", node["ip"]], stderr=subprocess.STDOUT, text=True, timeout=3)
-                self.send_json({"ok": True, "message": f"Host {node['ip']} responded to ICMP."})
+                if node.get("sshTarget") == "local":
+                    subprocess.check_output(["true"], timeout=1)
+                else:
+                    subprocess.check_output(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4", node["sshTarget"], "true"], stderr=subprocess.STDOUT, text=True, timeout=6)
+                self.send_json({"ok": True, "message": f"{node['host']} responded to the host probe."})
             except (OSError, subprocess.SubprocessError):
-                self.send_json({"ok": False, "message": f"Host {node['ip']} did not respond to ICMP."})
+                self.send_json({"ok": False, "message": f"{node['host']} did not respond to the host probe."})
             return
         self.send_json({"ok": False, "message": f"{action} requires an authenticated DTN agent on {node.get('host', node_id)}; no request was sent."})
     def send_json(self, value):

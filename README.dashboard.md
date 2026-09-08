@@ -15,4 +15,4 @@ Each `nodes[]` object supports `id`, `host`, `ip`, `eid`, `role` (`edge`, `gatew
 
 Recommended agent measurements are: ION process counts (`bpclock`, `ipnfw`, `udpclo`, `cfdpclock`, `bputa`), DTNEX heartbeat age, ingress/egress bundle counters, queue depth, last-seen peer, contact-plan freshness, CPB size/timestamp, and route advertisement age. Do not treat an IP or an open UDP/4556 port as proof of a DTN node; bind advertisements to an authenticated node ID/EID and include a `source` plus `observedAt` timestamp.
 
-The current mock view represents local edge nodes, the gateway, and two nodes learned beyond the gateway. Replace the mock `state` payload with real agent output when the collector is ready.
+The repository includes a live SSH collector path. Keep its node map outside the repository with `DTN_DASHBOARD_NODES=/path/to/private-node-map.json`; each entry supplies a generic dashboard ID/label and an SSH alias. The collector polls the six critical daemon classes and emits fresh `mode: "live"` state. Bundle classification still requires a bundle-aware agent or gateway feed.
