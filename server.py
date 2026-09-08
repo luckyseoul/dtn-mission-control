@@ -40,12 +40,28 @@ def collect_counts(node):
     except (OSError, subprocess.SubprocessError, ValueError, KeyError):
         return {name: 0 for name in PROCESS_NAMES}, False
 
+def tailscale_peers():
+    try:
+        payload = json.loads(subprocess.check_output(["tailscale", "status", "--json"], text=True, stderr=subprocess.DEVNULL, timeout=4))
+        peers = {}
+        for peer in payload.get("Peer", {}).values():
+            for address in peer.get("TailscaleIPs", []):
+                peers[address] = bool(peer.get("Online", False))
+        return peers
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return {}
+
 def live_state():
     configured = node_map()
     if not configured:
         return None
     nodes = []
+    peers = tailscale_peers()
     for item in configured:
+        if item.get("probe") == "tailscale":
+            reachable = peers.get(item.get("tailscaleIP"), False)
+            nodes.append({"id": item["id"], "host": item.get("label", item["id"]), "ip": item.get("tailscaleIP", "configured peer"), "sshTarget": None, "eid": item.get("eid", "DTN advertisement unverified"), "role": item.get("role", "remote"), "status": "reachable" if reachable else "offline", "services": [["Tailscale peer", 100 if reachable else 0], ["DTN service", 0]]})
+            continue
         counts, reachable = collect_counts(item)
         services = [["bpclock", 100 if counts["bpclock"] else 0], ["ipnfw", 100 if counts["ipnfw"] else 0], ["udpclo × 3", min(100, round(counts["udpclo"] / 3 * 100))], ["cfdpclock", 100 if counts["cfdpclock"] else 0], ["bputa", 100 if counts["bputa"] else 0], ["dtnex", 100 if counts["dtnex"] else 0]]
         active = sum(1 for _, health in services if health > 0)
@@ -53,7 +69,7 @@ def live_state():
         nodes.append({"id": item["id"], "host": item.get("label", item["id"]), "ip": item.get("displayAddress", "configured node"), "sshTarget": item.get("ssh"), "eid": item.get("eid", "DTN node"), "role": item.get("role", "edge"), "status": status, "services": services})
     ids = [node["id"] for node in nodes]
     links = [[ids[index], ids[index + 1]] for index in range(len(ids) - 1)]
-    return {"mode": "live", "observedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nodes": nodes, "links": links, "events": [{"kind": "info", "title": "Live daemon poll completed", "meta": f"{len(nodes)} configured nodes · refreshed from SSH/local process probes", "time": "just now"}], "bundleGroups": []}
+    return {"mode": "live", "observedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "nodes": nodes, "links": links, "routesBeyond": None, "events": [{"kind": "info", "title": "Live node poll completed", "meta": f"{len(nodes)} configured nodes · daemon and peer probes refreshed", "time": "just now"}], "bundleGroups": []}
 
 def read_state():
     collected = live_state()

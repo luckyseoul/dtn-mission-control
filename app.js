@@ -46,8 +46,11 @@ function renderMetrics() {
   const online = state.nodes.filter(n => n.status === 'online').length;
   $('#nodes-online').textContent = `${online} / ${state.nodes.length}`;
   $('#services-healthy').textContent = `${serviceCount(state.nodes.filter(n => n.status === 'online'))}`;
-  $('#bundles-hour').textContent = (state.bundleGroups || []).reduce((total, group) => total + Number(group.count || 0), 0).toLocaleString();
-  $('#routes-beyond').textContent = `${state.nodes.filter(n => n.role === 'remote').length}`;
+  const hasBundleCounters = Array.isArray(state.bundleGroups) && state.bundleGroups.length > 0;
+  $('#bundles-hour').textContent = hasBundleCounters ? (state.bundleGroups || []).reduce((total, group) => total + Number(group.count || 0), 0).toLocaleString() : '—';
+  $('#bundles-note').textContent = hasBundleCounters ? 'From live bundle counters' : 'No live counter source';
+  document.querySelector('.traffic-panel').classList.toggle('no-live-bundles', !hasBundleCounters);
+  $('#routes-beyond').textContent = Number.isInteger(state.routesBeyond) ? `${state.routesBeyond}` : '—';
   $('#topology-count').textContent = `${state.nodes.length} nodes · ${state.links.length} links`;
 }
 function renderHealth() {
